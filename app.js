@@ -5,9 +5,10 @@ const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
+const graphqlHttp = require('express-graphql').graphqlHTTP;
 
-const feedRoutes = require('./routes/feed');
-const authRoutes = require('./routes/auth');
+const graphqlSchema = require('./graphql/schema');
+const graphqlResolver = require('./graphql/resolvers');
 
 const app = express();
 
@@ -19,7 +20,7 @@ const fileStorage = multer.diskStorage({
       cb(null, uuidv4() + '-' + file.originalname);
   }
 });
-
+ 
 const fileFilter = (req, file, cb) => {
   if (
     file.mimetype === 'image/png' ||
@@ -49,8 +50,12 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use('/feed', feedRoutes);
-app.use('/auth', authRoutes);
+app.use('/graphql', graphqlHttp({
+    schema: graphqlSchema,
+    rootValue: graphqlResolver,
+    graphiql: true
+  })
+);
 
 app.use((error, req, res, next) => {
   console.log(error);
@@ -66,13 +71,7 @@ mongoose
     { useNewUrlParser: true, useUnifiedTopology: true }
   )
   .then(result => {
-    const server = app.listen(8080, () => {
-      console.log('Server running..')
-    });
-    const io = require("./socket").init(server);
-    io.on('connection', socket => {
-      console.log('Client connected');
-    });
+    app.listen(8080)
   })
   .catch(err => console.log(err));
 
