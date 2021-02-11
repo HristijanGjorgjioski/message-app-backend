@@ -9,6 +9,8 @@ const graphqlHttp = require('express-graphql').graphqlHTTP;
 
 const graphqlSchema = require('./graphql/schema');
 const graphqlResolver = require('./graphql/resolvers');
+const auth = require('./middleware/auth');
+const { clearImage } = require('./util/file');
 
 const app = express();
 
@@ -47,10 +49,27 @@ app.use((req, res, next) => {
     'OPTIONS, GET, POST, PUT, PATCH, DELETE'
   );
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  if(req.method === 'OPTIONS') {
+  if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
   }
   next();
+});
+
+app.use(auth);
+
+app.put('/post-image', (req, res, next) => {
+  if (!req.isAuth) {
+    throw new Error('Not authenticated!');
+  }
+  if (!req.file) {
+    return res.status(200).json({ message: 'No file provided!' });
+  }
+  if (req.body.oldPath) {
+    clearImage(req.body.oldPath);
+  }
+  return res
+    .status(201)
+    .json({ message: 'File stored.', filePath: req.file.path.replace('\\', '/') });
 });
 
 app.use(
@@ -81,11 +100,11 @@ app.use((error, req, res, next) => {
 
 mongoose
   .connect(
-    'mongodb+srv://admin:12345@cluster0.u2uu1.mongodb.net/messages',
-    { useNewUrlParser: true, useUnifiedTopology: true }
+    'mongodb+srv://admin:12345@cluster0.u2uu1.mongodb.net/messages'
   )
   .then(result => {
-    app.listen(8080)
+    app.listen(8080);
   })
   .catch(err => console.log(err));
+
 
